@@ -29,9 +29,9 @@ end
 
    npart=0
    Random.seed!(123)
-     @inbounds for l in l1:l2
-      @inbounds for j in j1:j2
-         @inbounds for i in i1:i2
+     @inbounds for l in 1:n
+      @inbounds for j in 1:n
+         @inbounds for i in 1:n
             nt=convert(Int64,trunc(d[i,j,l]/dCR))#   number of UHECR to be generated in the cell
             if nt >=1
                npart+=nt

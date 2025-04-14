@@ -17,7 +17,7 @@ ch=0.678
 cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 
 
-  main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/MAGHOR/" #..main folder containing ROGER functions
+  main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/MAGHOR/MAGHOR/" #..main folder containing ROGER functions
   #...modules 
   include(string(main,"/constants.jl"))
   include(string(main,"CRadvect_assign.jl"))   #...external module with all relevant functions used for the transport of CRs
@@ -52,12 +52,12 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
    
     #...boundary of the extracted region within the input simulation
     n=400   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
-    i1=1
-    i2=n
-    j1=1
-    j2=n 
-    l1=1
-    l2=n
+    i1=100
+    i2=i1+n-1
+    j1=600
+    j2=j1+n-1
+    l1=500
+    l2=l1+n-1
    
     energy,dEdt=losses(Z,main,z)   #....loading the appropriate tabulated loss function 
 
