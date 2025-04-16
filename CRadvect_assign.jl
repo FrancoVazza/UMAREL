@@ -142,7 +142,7 @@ end
     return p1[1:10]
       end
    
-function move_CR(p::Array{Float64,2},max_it::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64)
+function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64)
 #...selection of atomic mass number based on the nuclear charge number
     if Z==1  #proton 
     A=1
@@ -215,16 +215,18 @@ function move_CR(p::Array{Float64,2},max_it::Int64,scale::Float64,courant::Float
 
     pnew=integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt)  #...integrator of particle motion with kick-drift-kick method in the Borish pusher
     p[1:10,i].=pnew
-   
-    #...enforce periodic boundary conditions 
-
-    path[i,1,it]=p[1,i]
-    path[i,2,it]=p[2,i]
-    path[i,3,it]=p[3,i]
-    path[i,4,it]=p[10,i]
-    path[i,5,it]=p[7,i]
-    path[i,6,it]=p[8,i]
-    path[i,7,it]=p[9,i]
+ 
+    #....we write in the path[] file (to be written on disk) only one step every skip_path, to save memory 
+    it_path=convert(Int64,trunc(it/skip_path))
+    if it/skip_path==it_path 
+    path[i,1,it_path]=p[1,i]
+    path[i,2,it_path]=p[2,i]
+    path[i,3,it_path]=p[3,i]
+    path[i,4,it_path]=p[10,i]
+    path[i,5,it_path]=p[7,i]
+    path[i,6,it_path]=p[8,i]
+    path[i,7,it_path]=p[9,i]
+    end 
 
 
  end

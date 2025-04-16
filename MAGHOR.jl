@@ -44,14 +44,14 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 
 
     #.....main parameters for this MAGHOR run of proagation of UHECRs 
-    dsource=200 #...lower gas density threshold for the injection of UHECRs, relative to the cosmic mean gas density. 
+    dsource=250 #...lower gas density threshold for the injection of UHECRs, relative to the cosmic mean gas density. 
     E_initial=1e18  #....initial energy (in eV) of all injected UHECR
     Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves) 
-    time_tot=3e16   #.....maximum propagation time (in s)  (3e16->1Gyr)
-    courant=3.0     #...courant condition for time stepping 
-   
+    time_tot=1e16   #.....maximum propagation time (in s)  (3e16->1Gyr)
+    courant=1.0     #...courant condition for time stepping 
+    skip_path=5    #...we write the final path only every a number skip_path steps (to save memory)
     #...boundary of the extracted region within the input simulation
-    n=400   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
+    n=300   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
     i1=100
     i2=i1+n-1
     j1=600
@@ -80,18 +80,20 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
   dt=courant*scale/vc
   max_it=convert(Int64,trunc(time_tot/dt))      #...maximum number of iterations
   println("going to evolve UHECR for ",max_it," iterations, to cover ",time_tot/3e16, "Gyr of evolution")
-  times=Array{Float64}(undef,max_it)
-  for t in eachindex(times)  #...convenient array of times (in Gyr)
-  times[t]=dt*t/(1e9*yr)
-  end 
-
+  
+ 
   #....this array will store the trajectories and energy evolution of all particles 
-   path=Array{Float64}(undef,np,7,max_it)
+  npath=convert(Int64,trunc(max_it/skip_path))
+  path=Array{Float64}(undef,np,7,npath)
    path.=0.0
-
+   times=Array{Float64}(undef,npath)
+   for t in eachindex(times)  #...convenient array of times (in Gyr)
+    times[t]=dt*t*skip_path/(1e9*yr)
+    end 
+  
 
    #....main function which does all the hard work 
-  path=move_CR(trac,max_it,scale,courant,dt,dx,i1,i2,j1,j2,l1,l2,path,cdd,cv,cb,energy,dEdt,Z) #...evolve CR in time 
+  path=move_CR(trac,max_it,skip_path,scale,courant,dt,dx,i1,i2,j1,j2,l1,l2,path,cdd,cv,cb,energy,dEdt,Z) #...evolve CR in time 
 
    println("evolution done")
 
@@ -105,8 +107,8 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
             if i==1 
             plo=plot(path[i,5,:]*xs,path[i,6,:]*xs,label="",aspect_ratio = :equal ,dpi=1000,lw=0.1,grid=false)
             end 
-          plot!(path[i,5,:]*xs,path[i,6,:]*xs,label="",lw=0.2,alpha=0.2)
-          end 
+            plot!(path[i,5,:]*xs,path[i,6,:]*xs,label="",lw=0.2,alpha=0.2)
+            end 
            title!(string("Z=",Z," E0=",E_initial," eV"),fonts=20)
            yaxis!("[Mpc]",fonts=20)
            xaxis!("[Mpc]",fonts=20)
