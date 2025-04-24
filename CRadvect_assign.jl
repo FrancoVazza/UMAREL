@@ -54,7 +54,7 @@ end
          end 
          if nE[1]>1
             ii=convert(Int64,trunc(nE[1]*rand()+1))
-         p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies from 10^18 to 10^(18+E_initial)
+         p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
          end 
          end 
          end 
