@@ -29,6 +29,7 @@ end
 
    npart=0
    Random.seed!(123)
+   nE=size(E_initial)
      @inbounds for l in 1:n
       @inbounds for j in 1:n
          @inbounds for i in 1:n
