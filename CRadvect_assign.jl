@@ -47,8 +47,15 @@ end
          p[1:3,npart-c+1].=[ix,iy,iz]
          p[4:6,npart-c+1].=[vx,vy,vz]
          p[7:9,npart-c+1].=[ix,iy,iz]
-         p[10,npart-c+1]=E_initial  #...initial energy in eV 
-            end 
+
+         if nE[1]==1
+         p[10,npart-c+1]=10^E_initial[1]  #...initial energy in eV 
+         end 
+         if nE[1]>1
+            ii=convert(Int64,trunc(nE[1]*rand()+1))
+         p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies from 10^18 to 10^(18+E_initial)
+         end 
+         end 
          end 
       end
    end
