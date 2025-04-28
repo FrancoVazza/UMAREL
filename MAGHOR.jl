@@ -45,13 +45,13 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 
     #.....main parameters for this MAGHOR run of proagation of UHECRs 
     dsource=250 #...lower gas density threshold for the injection of UHECRs, relative to the cosmic mean gas density. 
-    E_initial=[18,19,20]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
+    E_initial=[18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
     Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves) 
     time_tot=1e16   #.....maximum propagation time (in s)  (3e16->1Gyr)
     courant=1.0     #...courant condition for time stepping 
     skip_path=5    #...we write the final path only every a number skip_path steps (to save memory)
     #...boundary of the extracted region within the input simulation
-    n=400   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
+    n=256   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
     i1=100
     i2=i1+n-1
     j1=600

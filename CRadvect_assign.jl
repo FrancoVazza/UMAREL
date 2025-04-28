@@ -53,9 +53,15 @@ end
          p[10,npart-c+1]=10^E_initial[1]  #...initial energy in eV 
          end 
          if nE[1]>1
-            ii=convert(Int64,trunc(nE[1]*rand()+1))
-         p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
-         end 
+            ii=convert(Int64,round(nE[1]*rand()))
+            if ii<1
+            ii=1
+            end 
+            if ii>nE[1]
+            ii=nE[1]
+            end 
+            p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
+            end 
          end 
          end 
       end
