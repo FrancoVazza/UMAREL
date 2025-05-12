@@ -269,17 +269,17 @@ function losses(Z,main,z)
           energy=a[:,1]
           loss_scale=a[:,2]
           dEdt=similar(energy)
-          times=similar(energy)
+          timesE=similar(energy)
           for e in eachindex(energy)
           dEdt[e]=vc/(loss_scale[e]*Mpctocm)     
-          times[e]=1/dEdt[e]/3e16
+          timesE[e]=1/dEdt[e]/3e16
           end 
         #..............................
         #...plot just to check the used loss function, can be omitted 
        lfs=14
        xfs=12
        xtfs=12
-       plot(energy,times,color="blue",label=label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
+       plot(energy,timesE,color="blue",label=label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
        title!(string("loss timescale, z=0"),fonts=20)
        yaxis!(L"[Gyr]",:log10,(0.001,1e2),fonts=20)
        xaxis!(L"E[eV]",:log10,(1e18,1e23),fonts=20)
