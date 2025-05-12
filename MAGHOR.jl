@@ -45,6 +45,10 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 
     #.....main parameters for this MAGHOR run of proagation of UHECRs 
     dsource=250 #...lower gas density threshold for the injection of UHECRs, relative to the cosmic mean gas density. 
+   #...three possibilities to initialise energy
+   #...E_initial=[5e20]  -> single value: all particles are initialised with this energy
+   #...E_initial=[18.0,18.5,19.0,19.5...] -> N values: particles are randomly assigned one of these values
+   #...E_initial=[-1]  -> negative value: all particles are random energy between 1e18 and 1e22 eV with a continuous distribution
     E_initial=[-1]# [18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
     Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves) 
     time_tot=9e16   #.....maximum propagation time (in s)  (3e16->1Gyr)
