@@ -49,7 +49,7 @@ end
          p[4:6,npart-c+1].=[vx,vy,vz]
          p[7:9,npart-c+1].=[ix,iy,iz]
 
-         if nE[1]==1
+         if nE[1]==1 && E_initial[1]>0
          p[10,npart-c+1]=10^E_initial[1]  #...initial energy in eV 
          end 
          if nE[1]>1
@@ -62,6 +62,13 @@ end
             end 
             p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
             end 
+
+            if nE[1]==1 && E_initial[1]==-1
+               Er=4*rand()
+               Ein_random=18+Er[1]
+               p[10,npart-c+1]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
+               end 
+
          end 
          end 
       end

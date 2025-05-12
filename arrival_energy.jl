@@ -28,7 +28,7 @@ include(string(main,"CRadvect_assign.jl"))   #...external module with all releva
  
 ################################################################################################################
 
-filep1 = string(root_out,"path_18.0Z1_test2.hdf5")
+filep1 = string(root_out,"path_-1Z1_spec.hdf5")
   
 px = h5read(filep1,"px")  #...X position without periodic BC 
 py = h5read(filep1,"py")  #...Y position without periodic BC 
@@ -46,14 +46,14 @@ for i in 1:nE[2]
 end 
     #yaxis!("[Mpc]",(0,dx*n*1e-3),fonts=20)
  #       xaxis!("[Mpc]",(0,dx*n*1e-3),fonts=20)
-yaxis!("[Mpc]",:log10,(1e17,1e21))
+yaxis!("[Mpc]",:log10,(5e17,1e22))
 xaxis!("[Gyr]")
 
 savefig(joinpath(plot_dir, "evolve_energy.png"))
 
 t0=time()
 p = plot()
-for n in 20 #[18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
+for n in [18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
 
     println(".....................reaching",n," eV...........................")
     initial_cr, time_step = size(energy)
@@ -68,7 +68,7 @@ for n in 20 #[18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
     
     
 #        id_final = findfirst(x -> isapprox(x, 10.0^ n, rtol=5), energy[i, :]) #la particella i raggiunge 1e20 al timestep id_final
-        id_final=(findall(x->isapprox(x,10.0^n,rtol=0.05),energy[i,:]))
+        id_final=(findall(x->isapprox(x,10.0^n,rtol=0.1),energy[i,:]))
         
         ##################################################################
         if isnothing(id_final)
@@ -88,7 +88,7 @@ for n in 20 #[18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
             dz = pz[i, j] - pz[i, 1]
 
             distance =  sqrt(dx^2 + dy^2 + dz^2) * 0.0415 #in Mpc
-            println(distance)
+          # println(distance)
             if distance>1e5 || isnan(distance)==1
                 distance=0
                 end  
@@ -127,7 +127,7 @@ for n in 20 #[18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
     println("plotting...")
 
     plot!((dist), frac_cr, label = string(10^n," eV"), title = "Arrival energy", xlim =(0, 4), ylim = (0,1), xlabel = "log(distance [Mpc])", ylabel = "fraction of CR", theme =:rose_pine_dawn, legend =:outerright ) 
-    xaxis!(:log10)
+    xaxis!(:log10,(0.1,100))
 end
 
 println("ELAPSED TIME=",time()-t0)
