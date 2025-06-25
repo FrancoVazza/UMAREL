@@ -1,6 +1,6 @@
-# MAGHOR
- code for the propagation of UHECRs on ENZO simulations
- (work in progress)
+# UMAREL
+ code for the propagation of UHECRs on ENZO simulations, by F.Vazza and A.Firinu, University of Bologna, in progress. 
+ 
 
 
 These are free parameters which the user should set to start a run:
