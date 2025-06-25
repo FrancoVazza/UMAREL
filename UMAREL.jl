@@ -17,7 +17,7 @@ ch=0.678
 cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 
 
-  main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/MAGHOR/MAGHOR/" #..main folder containing ROGER functions
+  main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/UMAREL/UMAREL/" #..main folder containing UMAREL functions
   #...modules 
   include(string(main,"/constants.jl"))
   include(string(main,"CRadvect_assign.jl"))   #...external module with all relevant functions used for the transport of CRs
@@ -43,7 +43,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
       
 
 
-    #.....main parameters for this MAGHOR run of proagation of UHECRs 
+    #.....main parameters for this UMAREL run of proagation of UHECRs 
     dsource=250 #...lower gas density threshold for the injection of UHECRs, relative to the cosmic mean gas density. 
    #...three possibilities to initialise energy
    #...E_initial=[5e20]  -> single value: all particles are initialised with this energy
