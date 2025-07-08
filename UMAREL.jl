@@ -63,7 +63,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
     l1=200
     l2=l1+n-1
    
-    energy,dEdt=losses(Z,main,z)   #....loading the appropriate tabulated loss function 
+    energy,dEdt=lossesC(Z,main,z)   #....loading the appropriate tabulated loss function 
 
   println("Injecting new UHECR based on density")
   trac=assign_CR_dens(i1,i2,j1,j2,l1,l2,file1,dsource,E_initial)   #...assign UHECR based on density 
@@ -87,7 +87,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
   
   #....this array will store the trajectories and energy evolution of all particles 
   npath=convert(Int64,trunc(max_it/skip_path))
-  path=Array{Float64}(undef,np,7,npath)
+  path=Array{Float64}(undef,np,8,npath)
    path.=0.0
    times=Array{Float64}(undef,npath)
    for t in eachindex(times)  #...convenient array of times (in Gyr)
@@ -144,6 +144,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
         h5write(filep1,"py",path[:,6,:])  #...Y position without periodic BC 
         h5write(filep1,"pz",path[:,7,:])  #...Z position without periodic BC 
         h5write(filep1,"E[eV]",path[:,4,:])  #...energy 
+        h5write(filep1,"B[G]",path[:,8,:])  #...comoving mag.field in Gauss
         h5write(filep1,"time",times)         #...list of simulated timesteps
        
         println("end of run")

@@ -65,7 +65,7 @@ end
 
             if nE[1]==1 && E_initial[1]==-1
                Er=4*rand()
-               Ein_random=18+Er[1]
+               Ein_random=17+Er[1]
                p[10,npart-c+1]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
                end 
 
@@ -225,6 +225,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     vp=p[4:6,i]
 
     pb=[bx[i1,i2,i3],by[i1,i2,i3],bz[i1,i2,i3]]
+  
     γ=p[10,i]*evtoerg/(A*prest)     #....Lorentz factor of particls. Notice it should be changed for UHECR with a higher composition!!!!!! 
 
       qm=Z*qe/(A*mp*γ)  #...mass, charge and gamma of the particle to be set here 
@@ -247,6 +248,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     path[i,5,it_path]=p[7,i]
     path[i,6,it_path]=p[8,i]
     path[i,7,it_path]=p[9,i]
+    path[i,8,it_path]=sqrt(pb[1]^2+pb[2]^2+pb[3]^2)  #...magnetic field amplitude
     end 
 
 
@@ -306,3 +308,51 @@ function losses(Z,main,z)
    
  return energy,dEdt
         end 
+
+
+
+function lossesC(Z,main,z)
+
+   #....tabulated loss function 
+   if Z==1 
+       file_losses=string(main,"/SimProp_losses_proton.txt") 
+      end 
+     
+         a=readdlm(file_losses)
+         energy=a[:,1]
+         loss_adiabatic=a[:,2]  #adiabatic
+         loss_pair_CMB=a[:,3]  #pair production  CMB
+         loss_pair_EBL=a[:,4]  #pair production - EBL
+         loss_pp_CMB=a[:,5]  # photo pion production - CMB 
+         loss_pp_EBL=a[:,6]  #photo pion production - EBL 
+         dEdt=similar(energy)
+         timesE=similar(energy)
+         for e in eachindex(energy)
+         dEdt[e]=(loss_adiabatic[e]+loss_pp_CMB[e]+loss_pp_EBL[e]+loss_pair_CMB[e]+loss_pair_EBL[e])/3e16#*energy[e]#/3e16
+         timesE[e]=1/dEdt[e]/3e16
+         end 
+       #..............................
+       #...plot just to check the used loss function, can be omitted 
+      lfs=14
+      xfs=12
+      xtfs=12
+      plot(energy,timesE,color="blue",label=label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
+      title!(string("loss timescale, z=0"),fonts=20)
+      yaxis!(L"Gyr",:log10,(1e-6,1e2),fonts=20)
+      xaxis!(L"E[eV]",:log10,(1e14,1e21),fonts=20)
+      model=""
+   
+      filep1=string(main,"losses_timescale_new.png")
+      savefig(filep1)
+  
+      plot(energy,dEdt,color="blue",label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
+      title!(string("loss scale, z=0"),fonts=20)
+      yaxis!(L"(dE/dt)",:log10,fonts=20)
+      xaxis!(L"E[eV]",:log10,(1e14,1e21),fonts=20)
+      model=""
+   
+      filep1=string(main,"dEdt_new.png")
+      savefig(filep1)
+
+return energy,dEdt
+       end 

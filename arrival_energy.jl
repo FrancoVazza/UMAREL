@@ -67,8 +67,8 @@ for n in [18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
        # println("particle number ",i," has initial energy ",  energy[i, 1])
     
     
-#        id_final = findfirst(x -> isapprox(x, 10.0^ n, rtol=5), energy[i, :]) #la particella i raggiunge 1e20 al timestep id_final
-        id_final=(findall(x->isapprox(x,10.0^n,rtol=0.1),energy[i,:]))
+ #       id_final = findfirst(x -> isapprox(x, 10.0^ n, rtol=0.5), energy[i, :]) #la particella i raggiunge 1e20 al timestep id_final
+        id_final=(findall(x->isapprox(x,10.0^n,rtol=0.25),energy[i,:]))
         
         ##################################################################
         if isnothing(id_final)
