@@ -20,11 +20,11 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
   main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/UMAREL/UMAREL/" #..main folder containing UMAREL functions
   #...modules 
   include(string(main,"/constants.jl"))
-  include(string(main,"CRadvect_assign.jl"))   #...external module with all relevant functions used for the transport of CRs
+  include(string(main,"CRadvect_assignZ.jl"))   #...external module with all relevant functions used for the transport of CRs
       
 
     #......selection of input cosmology and files 
-    cosmo=cosmology(OmegaM=0.258,h=0.72)   #...setting cosmology here
+#    cosmo=cosmology(OmegaM=0.258,h=0.72)   #...setting cosmology here
      
       #....input folder and file for the ENZO simulation 
       root0=string("/Users/francovazza/Desktop/data/DATA/RADGAL/LEONARDO/42.5Mpc/snap/")
@@ -34,11 +34,11 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
       xc=1/(dx)
       scale=dx*1e-3*cmtoMpc
        #.....conversion files from ENZO code units into physical units 
-       z=0.02   #...redshift 
-       cdd=2.82e-30*(1+z)^3. #...from code density to g/cm^3, physical units; divide for 1/(1+z)^3 for comoving
+       zfin=0.02   #...redshift 
+       cdd=2.82e-30*(1+zfin)^3. #...from code density to g/cm^3, physical units; divide for 1/(1+z)^3 for comoving
        cv=1.258e+08 #...from code velocity to cm/s, physical units; multiply this for 1+z for comoving
        cb=sqrt(cdd*4*pi)*cv# #..from code B-field to G, physical units ; ...divide for 1/(1+z)^2 for comoving
-       t0=ustrip(lookback_time(cosmo,z)::Number)
+       t0=ustrip(lookback_time(cosmo,zfin)::Number)
       #...............................................
       
 
@@ -51,9 +51,12 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
    #...E_initial=[-1]  -> negative value: all particles are random energy between 1e18 and 1e22 eV with a continuous distribution
     E_initial=[-1]# [18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
     Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves) 
-    time_tot=9e16   #.....maximum propagation time (in s)  (3e16->1Gyr)
-    courant=9.0     #...courant condition for time stepping 
-    skip_path=5    #...we write the final path only every a number skip_path steps (to save memory)
+    time_tot=3e17   #.....maximum propagation time (in s)  (3e16->1Gyr)
+
+    courant=3.0     #...courant condition for time stepping 
+
+    
+    skip_path=10    #...we write the final path only every a number skip_path steps (to save memory)
     #...boundary of the extracted region within the input simulation
     n=300   #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
     i1=100
@@ -62,13 +65,11 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
     j2=j1+n-1
     l1=200
     l2=l1+n-1
-     np=10000  
-    energy,dEdt=lossesC(Z,main,z)   #....loading the appropriate tabulated loss function 
+   
+    energy,dEdt=lossesC(Z,main)   #....loading the appropriate tabulated loss function 
 
   println("Injecting new UHECR based on density")
-#  trac=assign_CR_dens(i1,i2,j1,j2,l1,l2,file1,dsource,E_initial)   #...assign UHECR based on density 
-  trac=assign_CR_random(i1,i2,j1,j2,l1,l2,file1,np,E_initial)   #...assign UHECR based on density 
-  
+  trac=assign_CR_dens(i1,i2,j1,j2,l1,l2,file1,dsource,E_initial)   #...assign UHECR based on density 
   ntr=size(trac)    #....number of UHECR - it depends on the dsource density choosen above 
   np=ntr[2]
   println("A total number of ",np, " UHECR is going to be simulated")
@@ -85,6 +86,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
   #.....propagation of the particle from t=0 to t corresponding to max_it
   dt=courant*scale/vc
   max_it=convert(Int64,trunc(time_tot/dt))      #...maximum number of iterations
+
   println("going to evolve UHECR for ",max_it," iterations, to cover ",time_tot/3e16, "Gyr of evolution")
   
   #....this array will store the trajectories and energy evolution of all particles 
@@ -92,11 +94,18 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
   path=Array{Float64}(undef,np,8,npath)
    path.=0.0
    times=Array{Float64}(undef,npath)
-   for t in eachindex(times)  #...convenient array of times (in Gyr)
+   zed=Array{Float64}(undef,max_it)
+   zin=1.75
+   zfin=0.0
+    @inbounds  for t in eachindex(times)  #...convenient array of times (in Gyr)
     times[t]=dt*t*skip_path/(1e9*yr)
     end 
+    dz=(zin-zfin)/max_it
+    @inbounds for i in 1:max_it 
+    zed[i]=0.0 #zin-i*dz+1e-5       
+    end 
    #....main function which does all the hard work 
-  path=move_CR(trac,max_it,skip_path,scale,courant,dt,dx,i1,i2,j1,j2,l1,l2,path,cdd,cv,cb,energy,dEdt,Z) #...evolve CR in time 
+  path=move_CR(trac,max_it,skip_path,scale,courant,dt,dx,i1,i2,j1,j2,l1,l2,path,cdd,cv,cb,energy,dEdt,Z,zed) #...evolve CR in time 
 
    println("evolution done")
 
@@ -115,7 +124,7 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
            title!(string("Z=",Z," E0=",E_initial," eV"),fonts=20)
            yaxis!("[Mpc]",fonts=20)
            xaxis!("[Mpc]",fonts=20)
-           filep1=string(root_out,"_UHECR_path_color_map_",E_initial[1],"_Z_",Z,"_noBC_random.png")
+           filep1=string(root_out,"_UHECR_path_color_map_",E_initial[1],"_Z_",Z,"_noBC_redshift.png")
            savefig(filep1)
     
           #2) animated gif with periodic boundary conditions
@@ -132,13 +141,13 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
         yaxis!("[Mpc]",(0,dx*n*1e-3),fonts=20)
         xaxis!("[Mpc]",(0,dx*n*1e-3),fonts=20)
         end 
-        file_gif=string(root_out,"_UHECR_path_color_map_",E_initial[1],"_Z_",Z,"_BC_random.gif")
+        file_gif=string(root_out,"_UHECR_path_color_map_",E_initial[1],"_Z_",Z,"_BC_redshift.gif")
         gif(anim,file_gif,fps=10)    
         
 
 
         #...for safety, HDF5 files must be manually deleted before overwriting - otherwise the code stops here
-        filep1=string(root_out,"path_",E_initial[1],"Z",Z,"_spec_random.hdf5")
+        filep1=string(root_out,"path_",E_initial[1],"Z",Z,"_spec_redshift.hdf5")
         #h5write(filep1,"px",path[:,1,:])  #...X position with periodic BC 
         #h5write(filep1,"py",path[:,2,:])  #...Y position with periodic BC 
         #h5write(filep1,"pz",path[:,3,:])  #...Z position with periodic BC 

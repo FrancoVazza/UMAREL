@@ -21,7 +21,7 @@ if !isdir("newplots")
 end
 
 
-main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/MAGHOR/MAGHOR/" #..main folder containing ROGER functions
+main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/UMAREL/UMAREL/" #..main folder containing ROGER functions
 #...modules 
 include(string(main,"/constants.jl"))
 include(string(main,"CRadvect_assign.jl"))   #...external module with all relevant functions used for the transport of CRs
@@ -29,6 +29,7 @@ include(string(main,"CRadvect_assign.jl"))   #...external module with all releva
 ################################################################################################################
 
 filep1 = string(root_out,"path_-1Z1_spec.hdf5")
+filep1=string(root_out,"path_-1Z1_spec_redshift.hdf5")
   
 px = h5read(filep1,"px")  #...X position without periodic BC 
 py = h5read(filep1,"py")  #...Y position without periodic BC 
@@ -49,11 +50,11 @@ end
 yaxis!("[Mpc]",:log10,(5e17,1e22))
 xaxis!("[Gyr]")
 
-savefig(joinpath(plot_dir, "evolve_energy.png"))
+savefig(joinpath(plot_dir, "evolve_energy_REDSHIFT.png"))
 
 t0=time()
 p = plot()
-for n in [18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
+for n in [17,17.5,18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
 
     println(".....................reaching",n," eV...........................")
     initial_cr, time_step = size(energy)
@@ -131,5 +132,5 @@ for n in [18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5]
 end
 
 println("ELAPSED TIME=",time()-t0)
-savefig(joinpath(plot_dir, "arrival_energy.png"))
+savefig(joinpath(plot_dir, "arrival_energy_REDSHIFT.png"))
 

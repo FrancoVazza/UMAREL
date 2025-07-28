@@ -11,21 +11,21 @@ end
   function assign_CR_dens(i1,i2,j1,j2,l1,l2,file1,dsource,E_initial)
     #...this function assigns the initial position of UHECRs within cells denser than something ("halos")
     #...depending on the dsource density threshold, more or less UHECRs are injected 
-   d=h5read(file1,"Density",(i1:i2,j1:j2,l1:l2))   
-   dCR=dsource*mean(d)  #...to be changed with absolute density threshold? 
-   d0=similar(d)
-   println("density threshold=", dCR)
-@inbounds   for i in eachindex(d)
-   d0[i]=trunc(d[i]/dCR)
-   end  
-   id=findall((d0.>= 1))
-   totd=sum(d0[id])
+    d=h5read(file1,"Density",(i1:i2,j1:j2,l1:l2))   
+    dCR=dsource*mean(d)  #...to be changed with absolute density threshold? 
+    d0=similar(d)
+    println("density threshold=", dCR)
+    @inbounds   for i in eachindex(d)
+    d0[i]=trunc(d[i]/dCR)
+    end  
+    id=findall((d0.>= 1))
+    totd=sum(d0[id])
     
-   np=convert(Int64,trunc(totd))
-   println(np)
+    np=convert(Int64,trunc(totd))
+    println(np)
 
-   p=Array{Float64}(undef,10,np)
-   p.=0.0
+    p=Array{Float64}(undef,10,np)
+    p.=0.0
 
    npart=0
    Random.seed!(123)
@@ -78,59 +78,10 @@ end
     d=nothing
    return p
    end
-
-
-  function assign_CR_random(i1,i2,j1,j2,l1,l2,file1,np,E_initial)
-   #...this function assigns the initial position of UHECRs randomly, with an np total to be decided by the user in the main function 
-  ng=l2-l1  #...this assumes the domain to be cubic 
-  println(np)
-
-  p=Array{Float64}(undef,10,np)
-  p.=0.0
-
-  npart=0
-  Random.seed!(123)
-  nE=size(E_initial)
-    @inbounds for i in 1:np
-           ix=convert(Int64,trunc(1+(ng-1)*rand()))
-           iy=convert(Int64,trunc(1+(ng-1)*rand()))
-           iz=convert(Int64,trunc(1+(ng-1)*rand()))
-           θ=pi*rand()
-           φ=2*pi*rand()        
-           vx=vc*sin(θ)*cos(φ)     #...random initial velocity vector (v=c)
-           vy=vc*sin(θ)*sin(φ)
-           vz=vc*cos(θ)
-        p[1:3,i].=[ix,iy,iz]
-        p[4:6,i].=[vx,vy,vz]
-        p[7:9,i].=[ix,iy,iz]
-
-        if nE[1]==1 && E_initial[1]>0
-        p[10,i]=10^E_initial[1]  #...initial energy in eV 
-        end 
-        if nE[1]>1
-           ii=convert(Int64,round(nE[1]*rand()))
-           if ii<1
-           ii=1
-           end 
-           if ii>nE[1]
-           ii=nE[1]
-           end 
-           p[10,i]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
-           end 
-
-           if nE[1]==1 && E_initial[1]==-1
-              Er=4*rand()
-              Ein_random=17+Er[1]
-              p[10,i]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
-              end 
-end
-   
-  return p
-  end
  
 
  #...Boris pusher   
-function integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt)
+function integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)
     vp2=p1[4:6]
     modv=(p1[4]^2+p1[5]^2+p1[6]^2)  #...velocity module before kick (must be=c)
     vp2.+=dvx.*dt*0.5  #..kick   - velocity is updated for half a step 
@@ -200,7 +151,7 @@ end
    ntime=convert(Int64,trunc(dt/dtloss))
    #....losses are computed in a single step, or in a loop, if dE/dt is large 
    if ntime<=1
-      p1[10]=p1[10]*(1-dEdt[ebin]*dt)  #...effect of energy loss from a particle with energy energy[ide]
+      p1[10]=p1[10]*(1-((1+zz)^2*dEdt[ebin,2]+dEdt[ebin,1])*dt)  #...effect of energy loss from a particle with energy energy[ide]
    end 
 
    if ntime>=2
@@ -212,7 +163,7 @@ end
     return p1[1:10]
       end
    
-function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64)
+function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64,zed::Array{Float64})
 #...selection of atomic mass number based on the nuclear charge number
     if Z==1  #proton 
     A=1
@@ -246,7 +197,8 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
  println("total time of propagation=",time_tot)
 
 @inbounds for i in 1:np[2]   #...loop over all particles 
-@inbounds for it in 1:max_it    #....time integration for each particle 
+@inbounds for it in eachindex(zed)   #....time integration for each particle 
+  zz=zed[it]
 
  i1=convert(Int64,trunc(p[1,i]))
  i2=convert(Int64,trunc(p[2,i]))
@@ -257,7 +209,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     i1=ng+i1
      end 
      if i2 < 1 
-   i2=ng+i2
+     i2=ng+i2
      end 
     if i3 < 1 
    i3=ng+i3
@@ -273,7 +225,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     end  
     vp=p[4:6,i]
 
-    pb=[bx[i1,i2,i3],by[i1,i2,i3],bz[i1,i2,i3]]
+    pb=[bx[i1,i2,i3]*(1+z)^2,by[i1,i2,i3]*(1+z)^2,bz[i1,i2,i3]*(1+z)^2]   #.....physical B-field 
   
     γ=p[10,i]*evtoerg/(A*prest)     #....Lorentz factor of particls. Notice it should be changed for UHECR with a higher composition!!!!!! 
 
@@ -284,7 +236,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
    rl=iqm/(sqrt(pb[1]^2+pb[2]^2+pb[3]^2))
    p1=p[1:10,i]
 
-    pnew=integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt)  #...integrator of particle motion with kick-drift-kick method in the Borish pusher
+    pnew=integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)  #...integrator of particle motion with kick-drift-kick method in the Borish pusher
     p[1:10,i].=pnew
  
     #....we write in the path[] file (to be written on disk) only one step every skip_path, to save memory 
@@ -360,7 +312,7 @@ function losses(Z,main,z)
 
 
 
-function lossesC(Z,main,z)
+function lossesC(Z,main)
 
    #....tabulated loss function 
    if Z==1 
@@ -369,16 +321,18 @@ function lossesC(Z,main,z)
      
          a=readdlm(file_losses)
          energy=a[:,1]
+         nE=size(energy)
          loss_adiabatic=a[:,2]  #adiabatic
          loss_pair_CMB=a[:,3]  #pair production  CMB
          loss_pair_EBL=a[:,4]  #pair production - EBL
          loss_pp_CMB=a[:,5]  # photo pion production - CMB 
          loss_pp_EBL=a[:,6]  #photo pion production - EBL 
-         dEdt=similar(energy)
+         dEdt=Array{Float64}(undef,nE[1],2)
          timesE=similar(energy)
          for e in eachindex(energy)
-         dEdt[e]=(loss_adiabatic[e]+loss_pp_CMB[e]+loss_pp_EBL[e]+loss_pair_CMB[e]+loss_pair_EBL[e])/3e16#*energy[e]#/3e16
-         timesE[e]=1/dEdt[e]/3e16
+         dEdt[e,1]=(loss_adiabatic[e])/3e16
+         dEdt[e,2]=(loss_pp_CMB[e]+loss_pp_EBL[e]+loss_pair_CMB[e]+loss_pair_EBL[e])/3e16
+         timesE[e]=1/(dEdt[e,1]+dEdt[e,2])/3e16
          end 
        #..............................
        #...plot just to check the used loss function, can be omitted 
@@ -394,7 +348,7 @@ function lossesC(Z,main,z)
       filep1=string(main,"losses_timescale_new.png")
       savefig(filep1)
   
-      plot(energy,dEdt,color="blue",label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
+      plot(energy,dEdt[:,1].+dEdt[:,2],color="blue",label=string("Z=",Z),line=:solid,dpi=500,linewidth=2.5,alpha=0.7,grid=false,legendfontsize=lfs,yguidefontsize=xfs,xguidefontsize=xfs,xtickfontsize=xtfs,ytickfontsize=xtfs)
       title!(string("loss scale, z=0"),fonts=20)
       yaxis!(L"(dE/dt)",:log10,fonts=20)
       xaxis!(L"E[eV]",:log10,(1e14,1e21),fonts=20)
