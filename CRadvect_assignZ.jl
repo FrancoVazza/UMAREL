@@ -7,50 +7,76 @@ function cross_prod(a,b)
    return c 
 end
 
-  
-  function assign_CR_dens(i1,i2,j1,j2,l1,l2,file1,dsource,E_initial)
+function findz(a,x)
+na=size(a)
+i0=na[1]
+   @inbounds for i in eachindex(a)
+      if i==1 
+      continue
+      end 
+   if x>a[i] && x<a[i-1] 
+     i0=i
+   end 
+  end 
+
+ return i0
+end 
+
+function findnearest(a,x)
+   n = length(a)
+   n > 0 || return 0:-1
+   i1 = searchsortedlast(a,x)
+   i0 = i1
+   if i1>0
+       while i0>1 && a[i0-1]==a[i0]
+           i0 -= 1
+       end
+       d = x-a[i1]
+   else
+       i0 = i1+1
+       d = a[i1+1]-x
+   end
+   i2 = i1
+   if i2<n && a[i2+1]-x<d
+       i0 = i2+1
+       d = a[i2+1]-x
+       i2 += 1
+   end
+   while i2<n && a[i2+1]-x==d
+       i2 += 1
+   end
+   return i0:i2
+end
+
+  function assign_CR_dens_z(p,i1,i2,j1,j2,l1,l2,file1,dCR,E_initial,np,inj,ngen)
     #...this function assigns the initial position of UHECRs within cells denser than something ("halos")
-    #...depending on the dsource density threshold, more or less UHECRs are injected 
+    #...depending on the dCR density threshold, more or less UHECRs are injected 
     d=h5read(file1,"Density",(i1:i2,j1:j2,l1:l2))   
-    dCR=dsource*mean(d)  #...to be changed with absolute density threshold? 
-    d0=similar(d)
-    println("density threshold=", dCR)
-    @inbounds   for i in eachindex(d)
-    d0[i]=trunc(d[i]/dCR)
-    end  
-    id=findall((d0.>= 1))
-    totd=sum(d0[id])
-    
-    np=convert(Int64,trunc(totd))
-    println(np)
+    i_source=findall(d.>dCR)
+    nd=size(i_source)
+#    println("# of UHECR sources=", nd[1])
+    npt=convert(Int64,trunc(np/ngen))   #....number of new UHECR to be injected at this step 
 
-    p=Array{Float64}(undef,10,np)
-    p.=0.0
 
-   npart=0
-   Random.seed!(123)
-   nE=size(E_initial)
-     @inbounds for l in 1:n
-      @inbounds for j in 1:n
-         @inbounds for i in 1:n
-            nt=convert(Int64,trunc(d[i,j,l]/dCR))#   number of UHECR to be generated in the cell
-            if nt >=1
-               npart+=nt
-            @inbounds @simd for c in 1:nt #....loops on sorted cels 
-            ix=i+rand()
-            iy=j+rand()
-            iz=l+rand()
+    @inbounds for i in 1:npt  #...loop over the number of new UHECRs 
+      nE=size(E_initial)
+      ip=npt*(inj-1)+i        #...counter to begin the generation starting from the last UHECR evolved this far       
+      ir=convert(Int64,trunc(nd[1]*rand()+1))  #...selects a random cell from the i_source selection done above
+      ijk = CartesianIndices(d)[i_source[ir]]
+            ix=ijk[1]+rand()
+            iy=ijk[2]+rand()
+            iz=ijk[3]+rand()
             θ=pi*rand()
             φ=2*pi*rand()        
             vx=vc*sin(θ)*cos(φ)     #...random initial velocity vector (v=c)
             vy=vc*sin(θ)*sin(φ)
             vz=vc*cos(θ)
-         p[1:3,npart-c+1].=[ix,iy,iz]
-         p[4:6,npart-c+1].=[vx,vy,vz]
-         p[7:9,npart-c+1].=[ix,iy,iz]
+         p[1:3,ip].=[ix,iy,iz]
+         p[4:6,ip].=[vx,vy,vz]
+         p[7:9,ip].=[ix,iy,iz]
 
          if nE[1]==1 && E_initial[1]>0
-         p[10,npart-c+1]=10^E_initial[1]  #...initial energy in eV 
+         p[10,ip]=10^E_initial[1]  #...initial energy in eV 
          end 
          if nE[1]>1
             ii=convert(Int64,round(nE[1]*rand()))
@@ -60,20 +86,16 @@ end
             if ii>nE[1]
             ii=nE[1]
             end 
-            p[10,npart-c+1]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
+            p[10,ip]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
             end 
 
             if nE[1]==1 && E_initial[1]==-1
                Er=4*rand()
                Ein_random=17+Er[1]
-               p[10,npart-c+1]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
+               p[10,ip]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
                end 
-
+         
          end 
-         end 
-      end
-   end
-end
     
     d=nothing
    return p
@@ -163,7 +185,7 @@ end
     return p1[1:10]
       end
    
-function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64,zed::Array{Float64})
+function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64,zed::Float64,ngen::Int64,inj::Int64,file1)
 #...selection of atomic mass number based on the nuclear charge number
     if Z==1  #proton 
     A=1
@@ -194,11 +216,9 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
 #    bz.=2e-9
     
 
- println("total time of propagation=",time_tot)
-
-@inbounds for i in 1:np[2]   #...loop over all particles 
-@inbounds for it in eachindex(zed)   #....time integration for each particle 
-  zz=zed[it]
+@inbounds for i in 1:inj*ngen #np[2]   #...loop over all particles 
+#@inbounds for it in eachindex(zed)   #....time integration for each particle 
+  zz=zed  #...we assume the redshift as constant in this interval 
 
  i1=convert(Int64,trunc(p[1,i]))
  i2=convert(Int64,trunc(p[2,i]))
@@ -225,7 +245,7 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     end  
     vp=p[4:6,i]
 
-    pb=[bx[i1,i2,i3]*(1+z)^2,by[i1,i2,i3]*(1+z)^2,bz[i1,i2,i3]*(1+z)^2]   #.....physical B-field 
+    pb=[bx[i1,i2,i3]*(1+zz)^2,by[i1,i2,i3]*(1+zz)^2,bz[i1,i2,i3]*(1+zz)^2]   #.....physical B-field 
   
     γ=p[10,i]*evtoerg/(A*prest)     #....Lorentz factor of particls. Notice it should be changed for UHECR with a higher composition!!!!!! 
 
@@ -240,8 +260,8 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     p[1:10,i].=pnew
  
     #....we write in the path[] file (to be written on disk) only one step every skip_path, to save memory 
-    it_path=convert(Int64,trunc(it/skip_path))
-    if it/skip_path==it_path 
+    it_path=convert(Int64,trunc(t/skip_path))
+    if t/skip_path==it_path 
     path[i,1,it_path]=p[1,i]
     path[i,2,it_path]=p[2,i]
     path[i,3,it_path]=p[3,i]
@@ -253,7 +273,6 @@ function move_CR(p::Array{Float64,2},max_it::Int64,skip_path::Int64,scale::Float
     end 
 
 
- end
  end
  
 return path
