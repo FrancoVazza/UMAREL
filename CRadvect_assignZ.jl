@@ -9,7 +9,7 @@ end
 
 function findz(a,x)
 na=size(a)
-i0=na[1]
+i0=1#na[1]
    @inbounds for i in eachindex(a)
       if i==1 
       continue
@@ -22,37 +22,15 @@ i0=na[1]
  return i0
 end 
 
-function findnearest(a,x)
-   n = length(a)
-   n > 0 || return 0:-1
-   i1 = searchsortedlast(a,x)
-   i0 = i1
-   if i1>0
-       while i0>1 && a[i0-1]==a[i0]
-           i0 -= 1
-       end
-       d = x-a[i1]
-   else
-       i0 = i1+1
-       d = a[i1+1]-x
-   end
-   i2 = i1
-   if i2<n && a[i2+1]-x<d
-       i0 = i2+1
-       d = a[i2+1]-x
-       i2 += 1
-   end
-   while i2<n && a[i2+1]-x==d
-       i2 += 1
-   end
-   return i0:i2
-end
-
   function assign_CR_dens_z(p,i1,i2,j1,j2,l1,l2,file1,dCR,E_initial,np,inj,ngen)
     #...this function assigns the initial position of UHECRs within cells denser than something ("halos")
     #...depending on the dCR density threshold, more or less UHECRs are injected 
-    d=h5read(file1,"Density",(i1:i2,j1:j2,l1:l2))   
-    i_source=findall(d.>dCR)
+#    d=h5read(file1,"Dark_Matter_Density",(i1:i2,j1:j2,l1:l2)) 
+    d=  h5read(file1,"Density",(i1:i2,j1:j2,l1:l2)) 
+    mad=maximum(d)
+
+
+    i_source=findall(d.>dCR*mad)
     nd=size(i_source)
 #    println("# of UHECR sources=", nd[1])
     npt=convert(Int64,trunc(np/ngen))   #....number of new UHECR to be injected at this step 
@@ -102,6 +80,108 @@ end
    end
  
 
+
+
+  function assign_CR_halo_z(p,i1,i2,j1,j2,l1,l2,filecat,mass_source,E_initial,np,inj,ngen,n)
+   #...this function assigns the initial position of UHECRs using the position of matter halos given by a catalog
+
+   a=readdlm(filecat)
+
+   imass=findall(a[:,5].>=mass_source)
+     mass=a[imass,5]
+     radius=a[imass,4]
+     x=a[imass,1]
+     y=a[imass,2]
+     z=a[imass,3]
+     x.*=n
+     y.*=n
+     z.*=n
+     x.+=(-i1+1)
+     y.+=(-j1+1)
+     z.+=(-l1+1)
+     
+     im=sortperm(mass,rev=true)    
+  
+     npt=convert(Int64,trunc(np/ngen))   #....number of new UHECR to be injected at this step 
+     nim=size(im)
+     println("sources with >Mass= ", nim, " ",filecat)
+
+     if nim[1]<=1
+      imass=findall(a[:,5].>=mass_source*0.1)
+      mass=a[imass,5]
+      radius=a[imass,4]
+      x=a[imass,1]
+      y=a[imass,2]
+      z=a[imass,3]
+      x.*=n
+      y.*=n
+      z.*=n
+      x.+=(-i1+1)
+      y.+=(-j1+1)
+      z.+=(-l1+1)
+      im=sortperm(mass,rev=true) 
+      nim=size(im)
+      println("sources with >Mass= ", nim, " ",filecat)
+ 
+     end 
+
+     @inbounds for i in 1:npt  #...loop over the number of new UHECRs 
+     nE=size(E_initial)
+     ip=npt*(inj-1)+i        #...counter to begin the generation starting from the last UHECR evolved this far       
+   if i<=nim[1]
+      x1=x[im[i]]
+      y1=y[im[i]]
+      z1=z[im[i]]
+   end 
+      if i>nim[1]
+       ni=convert(Int64,trunc(i/nim[1]))
+       ii=i-ni*nim[1]+1
+      x1=x[im[ii]]
+      y1=y[im[ii]]
+      z1=z[im[ii]]
+     end 
+     # ir=convert(Int64,trunc(nd[1]*rand()+1))  #...selects a random cell from the i_source selection done above
+     #ijk = CartesianIndices(d)[i_source[ir]]
+           ix=x1+rand()  #ijk[1]+rand()
+           iy=y1+rand() #ijk[2]+rand()
+           iz=z1+rand()  #]ijk[3]+rand()
+           θ=pi*rand()
+           φ=2*pi*rand()        
+           vx=vc*sin(θ)*cos(φ)     #...random initial velocity vector (v=c)
+           vy=vc*sin(θ)*sin(φ)
+           vz=vc*cos(θ)
+        p[1:3,ip].=[ix,iy,iz]
+        p[4:6,ip].=[vx,vy,vz]
+        p[7:9,ip].=[ix,iy,iz]
+
+        if nE[1]==1 && E_initial[1]>0
+        p[10,ip]=10^E_initial[1]  #...initial energy in eV 
+        end 
+        if nE[1]>1 && E_initial[1]>0
+           ii=convert(Int64,round(nE[1]*rand()))
+           if ii<1
+           ii=1
+           end 
+           if ii>nE[1]
+           ii=nE[1]
+           end 
+           p[10,ip]=10^(E_initial[ii])  #....this generates are random distribution of initial energies picked from the given energy bins.
+           end 
+
+           if nE[1]>1 && E_initial[1]<0
+              Er=E_initial[3]*rand()
+              Ein_random=E_initial[2]+Er[1]
+              p[10,ip]=10^(Ein_random)  #....this generates are random distribution of initial energies picked from the given energy bins.
+            
+        
+        end 
+      end 
+   
+   d=nothing
+  return p
+  end
+
+
  #...Boris pusher   
 function integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)
     vp2=p1[4:6]
@@ -119,8 +199,8 @@ function integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)
    p1[3]+=vp2[3]*dt/(scale)  #...drift
 
    #...positions without enforced periodic BC
-   p1[7]+=vp2[1]*dt/(scale)  #...drift
-   p1[8]+=vp2[2]*dt/(scale)  #...drift
+   p1[7]+=vp2[1]*dt/(scale) #...drift
+   p1[8]+=vp2[2]*dt/(scale) #...drift
    p1[9]+=vp2[3]*dt/(scale)  #...drift
 
       #...periodic boundary conditions
@@ -173,19 +253,20 @@ end
    ntime=convert(Int64,trunc(dt/dtloss))
    #....losses are computed in a single step, or in a loop, if dE/dt is large 
    if ntime<=1
-      p1[10]=p1[10]*(1-((1+zz)^2*dEdt[ebin,2]+dEdt[ebin,1])*dt)  #...effect of energy loss from a particle with energy energy[ide]
+      p1[10]=p1[10]*(1-((1+zz)^2*dEdt[ebin,2]+dEdt[ebin,1])*dt)  #...effect of energy loss from a particle with energy energy[ide]. Adiabatic losses are z-independent, while the losses with photon bacgrounds scale with (1+z)^2
    end 
 
    if ntime>=2
    @inbounds   for tt in 1:ntime
-      p1[10]=p1[10]*(1-dEdt[ebin]*dtloss)
+      p1[10]=p1[10]*(1-((1+zz)^2*dEdt[ebin,2]+dEdt[ebin,1])*dtloss) 
+#      p1[10]=p1[10]*(1-dEdt[ebin]*dtloss)
    end 
 end 
 
     return p1[1:10]
       end
    
-function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64,zed::Float64,ngen::Int64,inj::Int64,file1)
+function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,courant::Float64,dt::Float64,dx::Float64,i1::Int64,i2::Int64,j1::Int64,j2::Int64,l1::Int64,l2::Int64,path::Array{Float64,3},cd::Float64,cv::Float64,cb::Float64,energy::Array{Float64},dEdt::Array{Float64},Z::Int64,zed::Float64,ngen::Int64,inj::Int64,file1,bx::Array{Float64},by::Array{Float64},bz::Array{Float64})
 #...selection of atomic mass number based on the nuclear charge number
     if Z==1  #proton 
     A=1
@@ -199,32 +280,20 @@ function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,co
     if Z==26  #Fe
     A=56
     end     
-    np=size(p)
-    bx=h5read(file1,"Bx",(i1:i2,j1:j2,l1:l2))
-    by=h5read(file1,"By",(i1:i2,j1:j2,l1:l2))
-    bz=h5read(file1,"Bz",(i1:i2,j1:j2,l1:l2))
-    
+    np1=size(p)
+ 
     ng=i2-i1+1
 
-    bx*=cb
-    by*=cb
-    bz*=cb
+   npt=convert(Int64,trunc(np1[2]/ngen))
+   nev=convert(Int64,npt*inj)
+   @inbounds for i in 1:nev   #...only evolve the UHECRs injected so far - the other remain idle 
+     zz=zed  #...we assume the redshift as constant in this interval 
 
-#....fixed magnetic field for testing. For a negligible B-field, set bx.=1e-20 etc,, for bx.=1e-9 for an important one 
-#    bx.=2e-9
-#    by.=2e-9
-#    bz.=2e-9
-    
+    i1=convert(Int64,trunc(p[1,i]))
+    i2=convert(Int64,trunc(p[2,i]))
+    i3=convert(Int64,trunc(p[3,i]))
 
-@inbounds for i in 1:inj*ngen #np[2]   #...loop over all particles 
-#@inbounds for it in eachindex(zed)   #....time integration for each particle 
-  zz=zed  #...we assume the redshift as constant in this interval 
-
- i1=convert(Int64,trunc(p[1,i]))
- i2=convert(Int64,trunc(p[2,i]))
- i3=convert(Int64,trunc(p[3,i]))
-
- #...periodic boundary conditions are enforced here 
+    #...periodic boundary conditions are enforced here 
      if i1 < 1 
     i1=ng+i1
      end 
@@ -232,45 +301,48 @@ function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,co
      i2=ng+i2
      end 
     if i3 < 1 
-   i3=ng+i3
+    i3=ng+i3
      end 
-    if i1>ng
-    i1=i1-ng
-    end  
-    if i2>ng
-    i2=i2-ng
-    end  
-    if i3>ng
-    i3=i3-ng
-    end  
-    vp=p[4:6,i]
+     if i1>ng
+     i1=i1-ng
+     end  
+     if i2>ng
+     i2=i2-ng
+     end  
+     if i3>ng
+     i3=i3-ng
+     end  
+     vp=p[4:6,i]
 
-    pb=[bx[i1,i2,i3]*(1+zz)^2,by[i1,i2,i3]*(1+zz)^2,bz[i1,i2,i3]*(1+zz)^2]   #.....physical B-field 
+       pb=[bx[i1,i2,i3]*(1+zz)^2,by[i1,i2,i3]*(1+zz)^2,bz[i1,i2,i3]*(1+zz)^2]   #.....physical B-field (1+z)^2
   
-    γ=p[10,i]*evtoerg/(A*prest)     #....Lorentz factor of particls. Notice it should be changed for UHECR with a higher composition!!!!!! 
+       γ=p[10,i]*evtoerg/(A*prest)     #....Lorentz factor of particls. Notice it should be changed for UHECR with a higher composition!!!!!! 
 
       qm=Z*qe/(A*mp*γ)  #...mass, charge and gamma of the particle to be set here 
-    iqm=1/(qm)
-    dvx=qm*cross_prod(vp,pb)#/vc   #....acceleration from Lorentz force
-  
-   rl=iqm/(sqrt(pb[1]^2+pb[2]^2+pb[3]^2))
-   p1=p[1:10,i]
+      iqm=1/(qm)
+      dvx=qm*cross_prod(vp,pb)#/vc   #....acceleration from Lorentz force
 
-    pnew=integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)  #...integrator of particle motion with kick-drift-kick method in the Borish pusher
-    p[1:10,i].=pnew
+      rl=iqm/(sqrt(pb[1]^2+pb[2]^2+pb[3]^2))
+      p1=p[1:10,i]
+
+       pnew=integ_kdk(p1,dvx,pb,dt,qm,scale,ng,courant,iqm,energy,dEdt,zz)  #...integrator of particle motion with kick-drift-kick method in the Borish pusher
+       p[1:10,i].=pnew
  
     #....we write in the path[] file (to be written on disk) only one step every skip_path, to save memory 
     it_path=convert(Int64,trunc(t/skip_path))
-    if t/skip_path==it_path 
-    path[i,1,it_path]=p[1,i]
-    path[i,2,it_path]=p[2,i]
-    path[i,3,it_path]=p[3,i]
-    path[i,4,it_path]=p[10,i]
-    path[i,5,it_path]=p[7,i]
-    path[i,6,it_path]=p[8,i]
-    path[i,7,it_path]=p[9,i]
-    path[i,8,it_path]=sqrt(pb[1]^2+pb[2]^2+pb[3]^2)  #...magnetic field amplitude
-    end 
+       if t/skip_path==it_path 
+        path[i,1,it_path]=p[1,i]
+         path[i,2,it_path]=p[2,i]
+         path[i,3,it_path]=p[3,i]
+         path[i,4,it_path]=p[10,i]
+         path[i,5,it_path]=p[7,i]
+         path[i,6,it_path]=p[8,i]
+         path[i,7,it_path]=p[9,i]
+         path[i,8,it_path]=sqrt(pb[1]^2+pb[2]^2+pb[3]^2)  #...physical magnetic field amplitude
+         path[i,9,it_path]=zed  #...redshift
+         path[i,10,it_path]=t*dt    #...time since the start of the simulation, in seconds
+         
+   end 
 
 
  end

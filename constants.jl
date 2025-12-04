@@ -21,6 +21,7 @@
   const yr=3.154e7
   const kpc=3.08567e21
   const Myr=3.154e13
+  const Gyr=3.154e16
   const fines=1.0/137.0 #...fine structure
    const Hefrac=0.24
   const Hfrac=1-Hefrac
