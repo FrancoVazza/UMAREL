@@ -22,13 +22,13 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
       
      
       #....input folder and file for the ENZO simulation 
-      root0=string("/Users/francovazza/Desktop/data/DATA/RADGAL/LEONARDO/42.5Mpc/snap/")
       root0=string("/Users/francovazza/Desktop/data/DATA/MAKITRA/var9/")
       root_out=string(root0,"/out/")
-      snap=[7,7,10,10, 15,15,15,  21,21,21,21]   #...list of ENZO snapshots to be used (they can repeat) 
-      zeds=[2.0,1.75,1.5,1.2,1.0,0.7,0.5,0.2,0.1,0.05,0.0]   #...list of redshits associated to snapshots. At each change in redshift, new UHECRs are injected 
+      snap=[13,14,15,17, 19,21,21]   #...list of ENZO snapshots to be used (they can repeat) 
+      zeds=[1.84,1.455,1.065,0.555,0.202,0.0]   #...list of redshits associated to snapshots. At each change in redshift, new UHECRs are injected 
       nz=size(zeds)
 
+ 
           
         const dx=292.0 #kpc  resolution of each cell 
         xc=1/(dx)
@@ -119,12 +119,9 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
 #    file1=string(root0,"minus1.0_0.2_j60fe3I__full_dtb_R00",snap[iz])
 #    file1=string(root0,"minus1.0_0.2_j60fe3I__full_dtb_R0027")
     
-      file1=string(root0,"minus2.9_08RD0_dtb_",snap[iz])   #...ENZO snapshots with 3D data 
-      filecat=string(root0,snap[iz],"_minus2.9_08_halof_100_new.dat")   #...halo catalogs 
-      if snap[iz] <10
-      file1=string(root0,"minus2.9_08RD0_dtb_0",snap[iz])
-      filecat=string(root0,"0",snap[iz],"_minus2.9_08_halof_100_new.dat")
-      end 
+      file1=string(root0,"minus1.0_08RD00",snap[iz],".cpu0000")   #...ENZO snapshots with 3D data 
+      filecat=string(root0,snap[iz],"_minus1.0_08_halof_200_new.dat")   #...halo catalogs 
+  
       if inj>inj0
       inj0=inj
      # p=assign_CR_dens_z(p,i1,i2,j1,j2,l1,l2,file1,dsource,E_initial,np,inj,ngen)   #...assign UHECR based on density 

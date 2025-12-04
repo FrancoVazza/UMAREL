@@ -14,7 +14,7 @@ i0=1#na[1]
       if i==1 
       continue
       end 
-   if x>a[i] && x<a[i-1] 
+   if x>=a[i] && x<a[i-1] 
      i0=i
    end 
   end 
