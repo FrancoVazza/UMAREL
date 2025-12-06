@@ -26,7 +26,7 @@ end
     #...this function assigns the initial position of UHECRs within cells denser than something ("halos")
     #...depending on the dCR density threshold, more or less UHECRs are injected 
 #    d=h5read(file1,"Dark_Matter_Density",(i1:i2,j1:j2,l1:l2)) 
-    d=  h5read(file1,"Density",(i1:i2,j1:j2,l1:l2)) 
+    d=  h5read(file1,"Grid00000001/Density",(i1:i2,j1:j2,l1:l2)) 
     mad=maximum(d)
 
 

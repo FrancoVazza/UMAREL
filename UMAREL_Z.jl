@@ -29,12 +29,12 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
       nz=size(zeds)
 
  
-          
-        const dx=292.0 #kpc  resolution of each cell 
+  
+        const dx=292.0 #kpc  comoving resolution of each cell 
         xc=1/(dx)
         scale=dx*1e-3*cmtoMpc
          #.....conversion files from ENZO code units into physical units 
-        zfin=0.80   #...final redshift 
+        zfin=0.0   #...final redshift 
         zin=2.0     #...initial redshift
         timeU=Gyr*ustrip(lookback_time(cosmo,1000)::Number)   #...age of the Universe 
         time_tot=Gyr*ustrip(lookback_time(cosmo,zin)::Number)   #.....maximum propagation time (in s), computed based on cosmology and the zin given above 
@@ -140,9 +140,9 @@ cosmo=cosmology(OmegaM=cOmegaM,h=ch)
       filep1=string(root_out,"_initial_map_newU",snap[iz],".png")
       savefig(filep1)
 
-    bx=h5read(file1,"Bx",(i1:i2,j1:j2,l1:l2))
-    by=h5read(file1,"By",(i1:i2,j1:j2,l1:l2))
-    bz=h5read(file1,"Bz",(i1:i2,j1:j2,l1:l2))
+    bx=h5read(file1,"Grid00000001/Bx",(i1:i2,j1:j2,l1:l2))
+    by=h5read(file1,"Grid00000001/By",(i1:i2,j1:j2,l1:l2))
+    bz=h5read(file1,"Grid00000001/Bz",(i1:i2,j1:j2,l1:l2))
 
   global    bx*=cb*(1+zed[t])^2    #...this field is comoving. it is turned into physical, x(1+z)^2, inside the propagation routine
   global    by*=cb*(1+zed[t])^2
