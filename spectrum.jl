@@ -1,0 +1,237 @@
+  using LaTeXStrings
+  using Plots
+  Plots.PyPlotBackend()
+  using Statistics
+  using SpecialFunctions
+  using DelimitedFiles
+  using HDF5
+  using Unitful
+  using Random
+
+#...cosmological parameters
+using Cosmology
+cOmegaM=0.308
+ch=0.678
+global cosmo=cosmology(OmegaM=cOmegaM,h=ch)
+
+
+  main="/Users/francovazza/Dropbox/Julia_prog/UHECRpropa/UMAREL/UMAREL/" #..main folder containing UMAREL functions
+  #...modules 
+  include(string(main,"/constants.jl"))
+  include(string(main,"CRadvect_assignZ.jl"))   #...external module with all relevant functions used for the transport of CRs
+          
+    
+      #....input folder and file for the ENZO simulation 
+      root0=string("/Users/francovazza/Desktop/data/DATA/MAKITRA/var11/snap/")
+      root_halos=string("/Users/francovazza/Dropbox/DATA/MAKITRA/var11/")
+      root_out=string(root0,"/out/")
+      snap=[13, 14, 15, 17, 19, 19,  21, 21,21]   #...list of ENZO snapshots to be used (they can repeat) 
+      zeds=[1.84,1.455,1.065,0.555,0.3,0.202,0.05,0.02,0.0]   #...list of redshits associated to snapshots. At each change in redshift, new UHECRs are injected 
+      #snap=[17, 19, 19,21, 21, 21,21]   #...list of ENZO snapshots to be used (they can repeat) 
+      #zeds=[1.065,0.555,0.3,0.202,0.05,0.02,0.0]   #...list of redshits associated to snapshots. At each change in redshift, new UHECRs are injected 
+    
+      #snap=[21, 21,21]   #...list of ENZO snapshots to be used (they can repeat) 
+      #zeds=[0.05,0.001,0.0]   #...list of redshits associated to snapshots. At each change in redshift, new UHECRs are injected 
+
+      nz=size(zeds)
+
+ 
+  
+        const dx=292.0 #kpc  comoving resolution of each cell 
+        xc=1/(dx)
+        scale=dx*1e-3*cmtoMpc
+         #.....conversion files from ENZO code units into physical units 
+        zfin=0.0   #...final redshift 
+        zin=1.84    #...initial redshift
+        timeU=Gyr*ustrip(lookback_time(cosmo,1000)::Number)   #...age of the Universe 
+        time_tot=Gyr*ustrip(lookback_time(cosmo,zin)::Number)-Gyr*ustrip(lookback_time(cosmo,zfin)::Number)   #.....maximum propagation time (in s), computed based on cosmology and the zin given above 
+        Δt=timeU-time_tot  #..initial epoch 
+        cdd=2.82e-30#    #...from code density to g/cm^3, physical units; multiply for (1+z)^3 for physical units at a given redshift 
+        cv=3848793462.5807     #...from code velocity to cm/s, physical units
+        cb=sqrt(cdd*4*pi)*cv    #..from code B-field to G, physical units ; ...multiply for (1+z)^0.5 for physical units at a given redshift 
+        
+       
+
+    #.....main parameters for this UMAREL run of proagation of UHECRs 
+    dsource=0.99 #..only used if UHECRs are selected based on overdensity (in "assign_CR_dens_z"), it is the fraction wrt to the maximum density from which the injection starts 
+    mass_source=1e12  #.....only used if UHECRs are selected based on halo catalogs ("assign_CR_halo_z"), it is the minimum total mass of halos considered as source of UHECRs
+
+    #...three possibilities to initialise energy
+    #...E_initial=[5e20]  -> single value: all particles are initialised with this energy
+    #...E_initial=[18.0,18.5,19.0,19.5...] -> N values: particles are randomly assigned one of these values
+    #...E_initial=[-1,17,4]  -> negative value: particles are randomly injected from a E^(-1) distribution, starting from log(17) and for 4 decades in energy
+  
+    E_initial=[-1,17,4] #  [-1,18,4]# [18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
+    Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves)  
+    courant=2.0     #...courant condition for time stepping 
+    skip_path=100  #...we write the final path only every a number skip_path steps (to save memory)
+    cosmo=1     #...if cosmo=1 use cosmology expansion factors, 1+z dependences etc ;  if cosmo=0 we still use the list of redshift given above, but without z-dependent effect 
+    #...boundary of the extracted region within the input simulation
+    n=512  #...this is the 1D size of the box which is going to be extracted (1024 is the max possible one)
+    i1=1
+    i2=i1+n-1
+    j1=1
+    j2=j1+n-1
+    l1=1
+    l2=l1+n-1
+   
+    energy,dEdt=lossesC(Z,main)   #....loading the appropriate tabulated loss function 
+
+     file1=string(root0,"/out/path_-1Z1_spec_redshift_cosmo1_B.hdf5")
+     file2=string(root0,"/out/path_-1Z1_spec_redshift_cosmo1_noB.hdf5")
+
+    x1=  h5read(file1,"px")
+    y1=  h5read(file1,"py")
+    z1=  h5read(file1,"pz")
+    E1= h5read(file1,"E[eV]")
+    z1=h5read(file1,"redshift")
+
+    x2=  h5read(file2,"px")
+    y2=  h5read(file2,"py")
+    z2=  h5read(file2,"pz")
+    E2= h5read(file2,"E[eV]")
+    z2=h5read(file2,"redshift")
+
+       nn=size(x2)
+       npath=nn[2]
+
+         #....final spectrum 
+          nspec=10
+          mie=16.0   #...logE
+          mae=21.0
+          bie=(mae-mie)/nspec
+          xe=Array{Float64}(undef,nspec)
+          spec=Array{Float64}(undef,nspec,npath,2)
+          spec.=0.0
+          spec_obs=Array{Float64}(undef,nspec,npath,2)
+          spec_obs.=0.0
+          mass_obs=7e11
+          #....select observers at z=0
+            filecat=string(root_halos,"21_minus1.0_08_halof_200_new.dat")   #...halo catalogs 
+            a=readdlm(filecat)
+            imass=findall((a[:,5].>=mass_obs) .& (a[:,5].<=mass_source))# masobs_source &&. a[:,5].>=1e12)
+            println("number of observers=",size(imass))
+            mass=a[imass,5]
+            radius=a[imass,4]
+            x=a[imass,1]
+            y=a[imass,2]
+            z=a[imass,3]
+            x.*=n
+            y.*=n
+            z.*=n
+            x.+=(-i1+1)
+            y.+=(-j1+1)
+            z.+=(-l1+1)      
+            im=sortperm(mass,rev=true)    
+            nim=size(im)
+            radius=3  #...observer radius in unit CELLS (not Mpc)
+            iobs=npath-1 #...snapshot where the observer is 
+            @inbounds for ii in eachindex(im)#...loop over observers 
+              ox1=x[im[ii]]
+              oy1=y[im[ii]]
+              oz1=z[im[ii]]
+
+              @inbounds for j in 1:np    #...loop over particles s
+               dist=sqrt( (x1[j,iobs]-ox1)^2+(y1[j,iobs]-oy1)^2+(z1[j,iobs]-oz1)^2)
+                if dist < radius #&& dist>1
+                  en=E1[j,iobs]
+                  if en>10.0^mie && en<10.0^mae  
+                 ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+                   spec_obs[ie,1,1]+=1.0
+                  end 
+               end 
+
+               dist=sqrt( (x2[j,iobs]-ox1)^2+(y2[j,iobs]-oy1)^2+(z2[j,iobs]-oz1)^2)
+               if dist < radius #&& dist>1
+                 en=E2[j,iobs]
+                 if en>10.0^mie && en<10.0^mae  
+                ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+                  spec_obs[ie,1,2]+=1.0
+                 end 
+              end 
+              end 
+
+
+            end 
+
+    
+          xe.=0.0
+          @inbounds  for i in 1:nspec
+             xe[i]=10.0^(mie+bie*(i-0.5))
+             end
+
+     @inbounds for j in iobs:iobs
+      @inbounds @simd for i in 1:np 
+       en=E1[i,j]
+       if en>10.0^mie && en<10.0^mae  
+      ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+        spec[ie,j,1]+=1.0
+       end 
+
+       en=E2[i,j]
+       if en>10.0^mie && en<10.0^mae  
+      ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+        spec[ie,j,2]+=1.0
+       end 
+      end 
+    end 
+
+
+       e1=17.0
+       e2=21.0
+
+       Eref=convert(Int64,trunc((19-mie)/bie))
+
+       norm0=sum(spec[Eref,iobs,1])/sum(spec[Eref,iobs,2])
+       norm1=sum(spec[Eref,iobs,1])/sum(spec_obs[Eref,1,1])
+       norm2=sum(spec[Eref,iobs,1])/sum(spec_obs[Eref,1,2])
+       
+ plot(xe,spec[:,iobs,1],line=:solid,dpi=300,lw=1,grid=false,alpha=0.5,label=string("B"),color="black")
+ plot!(xe,norm0*spec[:,iobs,2],line=:dash,lw=2,alpha=0.5,label=string("B=0"),color="black")
+ plot!(xe,norm1*spec_obs[:,1,1],line=:solid,lw=1,alpha=0.5,label=string("obs, B"),color="red")
+ plot!(xe,norm2*spec_obs[:,1,2],line=:dash,lw=1,alpha=0.5,label=string("obs, B=0"),color="red")
+   
+
+# norm=sum(spec[:,iobs])/sum(spec_obs[:,1])
+ #spec_obs.*=norm
+                  yaxis!("N(E)",:log10,(1e2,np),yticks=[1,10,1e2,1e3,1e4,1e5],fonts=20)
+             xaxis!(L"log_{10}E[eV]",:log10,(3*10^e1,3*10^e2),fonts=20,xticks=[1e17,1e18,1e19,1e20,1e21])
+          
+             file=string(root_out,"_UHECR_spectum_cfr_BIC.png") 
+             savefig(file)
+
+           sup=similar(spec_obs)
+           sup.=0.0
+
+           for i in 1:nspec 
+            sup[i,1,1]=(norm1*spec_obs[i,1,1])/spec[i,iobs,1]
+           
+           end 
+
+                      plot(xe,sup[:,1,1],line=:solid,dpi=300,lw=1,grid=false,alpha=0.5,color="black",label="z=0")
+                      yaxis!(L"G(E)=N(E)_{obs}/N(E)",fonts=20,(0,1.2))
+                      xaxis!(L"log_{10}E[eV]",:log10,(3*10^e1,3*10^e2),fonts=20,xticks=[1e17,1e18,1e19,1e20,1e21])
+                    
+                       file=string(root_out,"_UHECR_spectum_suppressions_BIC.png")
+                       savefig(file)
+             
+
+
+error()
+      #...for safety, HDF5 files must be manually deleted before overwriting - otherwise the code stops here
+        filep1=string(root_out,"path_",E_initial[1],"Z",Z,"_spec_redshift_cosmo",cosmo,"_",tag[q],".hdf5")
+        h5write(filep1,"px_pbc",path[:,1,:])  #...X position with periodic BC 
+        h5write(filep1,"py_pbc",path[:,2,:])  #...Y position with periodic BC 
+        h5write(filep1,"pz_pbc",path[:,3,:])  #...Z position with periodic BC 
+        h5write(filep1,"px",path[:,5,:])  #...X position without periodic BC 
+        h5write(filep1,"py",path[:,6,:])  #...Y position without periodic BC 
+        h5write(filep1,"pz",path[:,7,:])  #...Z position without periodic BC 
+        h5write(filep1,"E[eV]",path[:,4,:])  #...energy 
+        h5write(filep1,"B[G]",path[:,8,:])  #...physical mag.field in Gauss
+        h5write(filep1,"redshift",path[:,9,:])  #...redshift
+        h5write(filep1,"time",path[:,10,:])  #...elapsed time  
+
+#        h5write(filep1,"time",times)         #...list of simulated timesteps
+    ##   h5write(filep1,"B[G]",path[:,8,:])  #...comoving mag.field in Gauss
+       
+        println("end of run")
