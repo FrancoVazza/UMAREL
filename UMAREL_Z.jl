@@ -68,6 +68,7 @@
        a=plot_map_WBC(dx,np,path,E_initial,Z,root_out,cosmo,tag)   #...plot trajectories without periodic BC 
        a=make_gif(skip_path,npath,E_initial,path,nz,Z,root_out,n,cosmo,tag)    #...gif with UHECR propagation
        a=plot_spectrum(path,np,root_out,E_initial,Z,cosmo,tag)
+       a=plot_spectrum_suppression(path,np,root_out,E_initial,Z,cosmo,tag,root_halos)
 #       a=write_path(root_out,E_initial,Z,cosmo,tag,path)
 
 

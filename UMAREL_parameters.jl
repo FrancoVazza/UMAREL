@@ -44,7 +44,7 @@
       #...E_initial=[-1,17,4]  -> negative value: particles are randomly injected from a E^(-1) distribution, starting from log(17) and for 4 decades in energy
       E_initial=[-1,17,4] #  [-1,18,4]# [18.0,18.5,19.0,19.5,20.0,20.5,21.0,21.5]  #....initial energy (in eV) of all injected UHECR. Each entry of E_initial represents an energy bin which can be randomly associated with any injected UHECRS
       Z=1            #....nuclear charge Z=1 proton, Z=2 helium,  Z=7 nitrogen Z=26 iron   Only these are supported (only for them we have loss curves)  
-      courant=30.0     #...courant condition for time stepping 
+      courant=90.0     #...courant condition for time stepping 
       skip_path=20  #...we write the final path only every a number skip_path steps (to save memory)
       cosmo=1     #...if cosmo=1 use cosmology expansion factors, 1+z dependences etc ;  if cosmo=0 we still use the list of redshift given above, but without z-dependent effect 
       use_syntheticB=0  #....0=using cosmological simulations, 1=using a test 3D field 

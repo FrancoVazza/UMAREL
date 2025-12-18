@@ -289,7 +289,7 @@ function move_CR(p::Array{Float64,2},t::Int64,skip_path::Int64,scale::Float64,co
      zed=0.0
      end 
     if cosmo==1    #...the comoving scale is made proper at the given z  
-     scale=scale/(1+z)
+     scale=scale/(1+zed)
     end 
 
     #...selection of atomic mass number based on the nuclear charge number
@@ -596,7 +596,7 @@ function plot_map_WBC(dx,np,path,E_initial,Z,root_out,cosmo,tag)
           #...this plotting function in general produces way too many frames and it wastes some time
           #   nframe=npath  if one wants to produce the full movie with all steps in the path file
           #   nframe<npath  if one wants to limit the gif to a smaller number of frames, like npath=100 for the first 100 steps only  
-            nframe=50
+            nframe=npath
             anim=@animate for t in 1:skip_path:nframe*skip_path   #....plotting positions 
                it+=1
         println(t)      
@@ -663,6 +663,127 @@ function plot_map_WBC(dx,np,path,E_initial,Z,root_out,cosmo,tag)
 
 
     end 
+
+
+
+    function plot_spectrum_suppression(path,np,root_out,E_initial,Z,cosmo,tag,root_halos)
+
+
+        #....plotting the final spectrum 
+        nspec=10
+        mie=16.0   #...logE
+        mae=21.0
+        bie=(mae-mie)/nspec
+        xe=Array{Float64}(undef,nspec)
+        spec=Array{Float64}(undef,nspec,npath)
+        spec.=0.0
+        iobs=npath  #...snapshot where we produce the final spectrum 
+         xe.=0.0
+          @inbounds  for i in 1:nspec
+           xe[i]=10.0^(mie+bie*(i-0.5))
+           end
+
+     @inbounds for j in 1:npath
+     @inbounds @simd for i in 1:np 
+     en=path[i,4,j]
+     if en>10.0^mie && en<10.0^mae  
+     ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+    spec[ie,j]+=1.0
+     end 
+     end 
+     end 
+
+         spec_obs=Array{Float64}(undef,nspec,npath,2)
+         spec_obs.=0.0
+         mass_obs=7e11      
+         mass_source=1e13   #...set this to what is used in the code  
+         #....select observers at z=0
+           filecat=string(root_halos,"21_minus1.0_08_halof_200_new.dat")   #...halo catalogs 
+           a=readdlm(filecat)
+           imass=findall((a[:,5].>=mass_obs) .& (a[:,5].<=mass_source))# masobs_source &&. a[:,5].>=1e12)
+           println("number of observers=",size(imass))
+           mass=a[imass,5]
+           radius=a[imass,4]
+           x=a[imass,1]
+           y=a[imass,2]
+           z=a[imass,3]
+           x.*=n
+           y.*=n
+           z.*=n
+           x.+=(-i1+1)
+           y.+=(-j1+1)
+           z.+=(-l1+1)      
+           im=sortperm(mass,rev=true)    
+           nim=size(im)
+           radius=3  #...observer radius in unit CELLS (not Mpc)
+           iobs=npath-1 #...snapshot where the observer is placed. better not the very last snapshot to avoid UHECRs injected in the last timestep 
+           @inbounds for ii in eachindex(im)#...loop over observers 
+             ox1=x[im[ii]]
+             oy1=y[im[ii]]
+             oz1=z[im[ii]]
+
+             @inbounds for j in 1:np    #...loop over particles s
+              dist=sqrt( (x1[j,iobs]-ox1)^2+(y1[j,iobs]-oy1)^2+(z1[j,iobs]-oz1)^2)
+               if dist < radius 
+                 en=E1[j,iobs]
+                 if en>10.0^mie && en<10.0^mae  
+                ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+                  spec_obs[ie,1,1]+=1.0
+                 end 
+              end 
+
+              dist=sqrt( (x2[j,iobs]-ox1)^2+(y2[j,iobs]-oy1)^2+(z2[j,iobs]-oz1)^2)
+              if dist < radius #&& dist>1
+                en=E2[j,iobs]
+                if en>10.0^mie && en<10.0^mae  
+               ie=convert(Int64,trunc((log10(en)-mie)/bie))+1
+                 spec_obs[ie,1,2]+=1.0
+                end 
+             end 
+             end 
+
+
+           end 
+
+      e1=17.0
+      e2=21.0
+      E_ref=19.0    #.....reference log(E) at which we normalise the total and the observed spectrum to have the same value
+
+      Eref=convert(Int64,trunc((E_ref-mie)/bie))
+      norm0=sum(spec[Eref,iobs,1])/sum(spec[Eref,iobs,2])
+      norm1=sum(spec[Eref,iobs,1])/sum(spec_obs[Eref,1,1])
+      norm2=sum(spec[Eref,iobs,1])/sum(spec_obs[Eref,1,2])
+      
+plot(xe,spec[:,iobs,1],line=:solid,dpi=300,lw=1,grid=false,alpha=0.5,label=string("B"),color="black")
+#plot!(xe,norm0*spec[:,iobs,2],line=:dash,lw=2,alpha=0.5,label=string("B=0"),color="black")
+plot!(xe,norm1*spec_obs[:,1,1],line=:solid,lw=1,alpha=0.5,label=string("obs, B"),color="red")
+#plot!(xe,norm2*spec_obs[:,1,2],line=:dash,lw=1,alpha=0.5,label=string("obs, B=0"),color="red")
+  
+
+                 yaxis!("N(E)",:log10,(1e2,np),yticks=[1,10,1e2,1e3,1e4,1e5],fonts=20)
+                 xaxis!(L"log_{10}E[eV]",:log10,(3*10^e1,3*10^e2),fonts=20,xticks=[1e17,1e18,1e19,1e20,1e21])
+          
+            file=string(root_out,"_UHECR_spectum_cfr_",tag,".png") 
+            savefig(file)
+
+          sup=similar(spec_obs)
+          sup.=0.0
+
+          for i in 1:nspec 
+           sup[i,1,1]=(norm1*spec_obs[i,1,1])/spec[i,iobs,1]
+          end 
+
+                     plot(xe,sup[:,1,1],line=:solid,dpi=300,lw=1,grid=false,alpha=0.5,color="black",label="z=0")
+                     yaxis!(L"G(E)=N(E)_{obs}/N(E)",fonts=20,(0,1.2))
+                     xaxis!(L"log_{10}E[eV]",:log10,(3*10^e1,3*10^e2),fonts=20,xticks=[1e17,1e18,1e19,1e20,1e21])
+                   
+                      file=string(root_out,"_UHECR_spectum_suppressions_",tag,".png")
+                      savefig(file)
+            
+   end 
+
+
+
 
 
 
